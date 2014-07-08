@@ -1493,11 +1493,11 @@ function gci.dointercept(target, iflight, startpos)
 					local tardir = math.deg(mist.utils.getDir(tarvec, _interceptorunitposp))
 					local _engagetext = "You are clear to engage."
 					if (tablecontains(gci.divertables, Group.getName(Unit.getGroup(_targetunit)))) then _engagetext = "Weapons hold. Try to divert the target." end
-					local _targetinfo = string.format("\nYour target should be at bearing %d altitude %s. %s %s", tardir+mist.getNorthCorrection(_interceptorunitposp), _taltstr,_engagetext,_useradartext)
+					local _targetinfo = string.format("\nYour target should be at heading %d altitude %s. %s %s", tardir+mist.getNorthCorrection(_interceptorunitposp), _taltstr,_engagetext,_useradartext)
 					if (_dist > _interceptrange) then _targetinfo = "" end
 					local _BRAATEXT = string.format("Fly heading %d for %s at speed %s and altitude %s%s", math.deg(dir+mist.getNorthCorrection(_interceptorunitposp)),_diststr, _ispeed, _ialtstr, _targetinfo)
 					
-					if getAliveUnits(_interceptorgroup)[1]:inAir() == false then _BRAATEXT = string.format("Take off and fly heading %d at speed %s and altitude %s", math.deg(dir), _ispeed, _ialtstr) end
+					if getAliveUnits(_interceptorgroup)[1]:inAir() == false then _BRAATEXT = string.format("Take off and fly heading %d at speed %s and altitude %s", math.deg(dir+mist.getNorthCorrection(_interceptorunitposp)), _ispeed, _ialtstr) end
 					local _infoforplayer = _BRAATEXT
 					--if (_dist < _interceptrange) then _infoforplayer = _targetinfo end--string.format("Your target should be at bearing %d altitude %d. You are clear to engage. %s", tardir, math.floor(_targetunitposp.y/100)*100,_useradartext) end 
 					--local _BRAATEXT = string.format("Fly heading %s speed %d", mist.getBRString({units = _unittable, ref = _ipoint, alt = _interceptoralt, metric = 1}),_interceptorspeed)
@@ -1543,14 +1543,14 @@ function gci.divertable(params)
 		return -1
 	end
 	if (Group.getCoalition(Group.getByName(_groupName)) == coalition.side.BLUE) then
-		_enemyunits = mist.getUnitsLOS({Unit.getName(_flightlead)}, 0, mist.makeUnitTable({"[red]"}), 0, 500)
+		_enemyunits = mist.getUnitsLOS({Unit.getName(_flightlead)}, 0, mist.makeUnitTable({"[red]"}), 0, 400)
 	else
-		_enemyunits = mist.getUnitsLOS({Unit.getName(_flightlead)}, 0, mist.makeUnitTable({"[blue]"}), 0, 500)
+		_enemyunits = mist.getUnitsLOS({Unit.getName(_flightlead)}, 0, mist.makeUnitTable({"[blue]"}), 0, 400)
 	end
 	
 	
 	
-	if (#_enemyunits > 0) then
+	if (#_enemyunits > math.random(0,1)) then
 	--local _wps = gci.getRemainingWaypoints(_group)
 		local _allwps = mist.getGroupPoints(_groupName)
 		local _lastwp = _allwps[(#_allwps)]
