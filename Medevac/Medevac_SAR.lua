@@ -1,30 +1,45 @@
--- MEDEVAC Script for DCS, By RagnarDa 2013
+-- MEDEVAC Script for DCS, By RagnarDa, DragonShadow & Shagrat 2013, 2014
 			
 
 medevac = {}
 
 -- SETTINGS FOR MISSION DESIGNER vvvvvvvvvvvvvvvvvv
-
 medevac.medevacunits = {"MEDEVAC #1", "MEDEVAC #2"} -- List of all the MEDEVAC _UNIT NAMES_ (the line where it says "Pilot" in the ME)!
 medevac.bluemash = {"BlueMASH #1", "BlueMASH #2"} -- The unit that serves as MASH for the blue side
 medevac.redmash = {"RedMASH #1", "RedMASH #2"} -- The unit that serves as MASH for the red side
-medevac.maxbleedtime = 1800 -- Maximum time that the wounded will bleed in the transport before dying
 medevac.bluesmokecolor = 4 -- Color of smokemarker for blue side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
 medevac.redsmokecolor = 1 -- Color of smokemarker for red side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
-medevac.requestdelay = 5 -- Time in seconds before the survivors will request Medevac
+medevac.requestdelay = 15 -- Time in seconds before the survivors will request Medevac
 medevac.coordtype = 3 -- Use Lat/Long DDM (0), Lat/Long DMS (1), MGRS (2), Bullseye imperial (3) or Bullseye metric (4) for coordinates.
 medevac.displaymapcoordhint = false -- Change to false to disable the hint about changing coordinates on the F10-map
-medevac.displayerrordialog = false -- Set to true to display error dialog on fatal errors. Recommend set to false in live game.
+medevac.displayerrordialog = false -- Set to true to display error dialog on fatal errors. Recommend set to false in live game. --MARK
 medevac.displaymedunitslist = false -- Set to true to see what medevac units are in the mission at the start.
 medevac.bluecrewsurvivepercent = 100 -- Percentage of blue crews that will make it out of their vehicles. 100 = all will survive.
 medevac.redcrewsurvivepercent = 100 -- Percentage of red crews that will make it out of their vehicles. 100 = all will survive.
 medevac.showbleedtimer = false -- Set to true to see a timer counting down the time left for the wounded to bleed out
 medevac.sar_pilots = true -- Set to true to allow for Search & Rescue missions of downed pilots
-medevac.immortalcrew = false -- Set to true to make wounded crew immortal
+medevac.immortalcrew = true -- Set to true to make wounded crew immortal
+medevac.invisiblecrew = true -- Set to true to make wounded crew insvisible
+medevac.crewholdfire = true -- Set tot true to have wounded crew hold fire
 medevac.rpgsoldier = false -- Set to true to spawn one of the wounded as a RPG-carrying soldier
 medevac.clonenewgroups = false -- Set to true to spawn in new units (clones) of the rescued unit once they're rescued back to the MASH
-
+medevac.maxbleedtimemultiplier = 1.2 -- Minimum time * multiplier = Maximum time that the wounded will bleed in the transport before dying
+medevac.cruisespeed = 40 -- Used for calculating distance/speed = Minimum time from medevac point to reaching MASH.
+                         -- Meters per second, 40 = ~150km/h which is a bit under the low end of the Huey cruise speed.
+medevac.minbleedtime = 30 -- Minimum bleed time that's possible to get
+medevac.minlandtime = 30 -- Minimum time * medevac.pilotperformance < medevac.minlandtime --> Pad to at least this much time allocated for landing
+medevac.pilotperformance = 0.15 -- Multiplier on how much of the given time pilot is expected to have left when reaching the MASH (On average)
 -- SETTINGS FOR MISSION DESIGNER ^^^^^^^^^^^^^^^^^^^*
+
+
+-- Changelog v 5 (beta)
+-- - Merged changes by DragonShadow
+   -- Injection of existing units as medevac groups, calculating minimum for bleed time based on distance from MASH.
+   -- Added a function for calculating the direct flight distance between two points.
+   -- Added padding for minimum landing time after flying the distance.
+   -- Added possibility to trigger a function when a specificied group is rescued.
+   -- Now finds closest friendly MASH unit and uses their distance for calculating bleed time.
+-- - Merged changes by Shagrat
 
 -- Changelog v 4.2
 -- - Verified compatibility with MiST 3.2+ and removed compatibility with SCT.
@@ -77,7 +92,8 @@ medevac.woundedgroups = {}
 medevac.pickedupgroups = {}
 medevac.deadunits = {}
 medevac.menupaths = table.copy(medevac.medevacunits)
-
+-- DS: Maps 'groupname' -> function() to execute when named group is rescued. Contains the actual functions, not a reference.
+medevac.rescuetriggersfunction = {}
 
 
 function tablelength(T)
@@ -197,7 +213,7 @@ function BleedTimer(_argument, _time)
 			local _timeleft = math.floor(0 + (_pickuptime - timer.getTime()))
 			if (_timeleft < 1) then
 				-- trigger.action.outTextForGroup(_medevacid, string.format("The wounded has bled out.", _timeleft), 20)
-				local _txt = string.format("%s: The wounded has died of his wounds.", _rescuegroup)
+				local _txt = string.format("%s: Ok. We lost him! He is gone! Damn it! -survivor died of his wounds-", _rescuegroup)
 			
 				medevac.DisplayMessage(_txt, _medevacname, _rescuegroup, 30)
 				return nil
@@ -224,14 +240,20 @@ function BleedTimer(_argument, _time)
 				local _medspeed = mist.vec.mag(_velv)--string.format('%12.2f', mist.vec.mag(_velv))
 
 				if (_medspeed < 1 and _distance < 200 and _medevacunit:inAir() == false) then
-					--trigger.action.outTextForGroup(_medevacid, string.format("The wounded has been taken to the\nmedical clinic. Good job!", "Good job!"), 30)
-					local _txt = string.format("%s: The wounded has been taken to the\nmedical clinic. Good job!", _rescuegroup)
+				
+					-- DS: Check if a function has been associated with this groups rescue and run it.
+					if (medevac.rescuetriggersfunction[_rescuegroup] ~= nil) then
+						medevac.rescuetriggersfunction[_rescuegroup]()
+					end
+					
+					--trigger.action.outTextForGroup(_medevacid, string.format("The wounded have been taken to the\nmedical clinic. Good job!", "Good job!"), 30)
+					local _txt = string.format("%s: The wounded have been taken to the\nmedical clinic. Good job!", _rescuegroup)
 			
 					medevac.DisplayMessage(_txt, _medevacname, _rescuegroup, 10)
 					if (medevac.clonenewgroups) then
 						--sct.cloneInZone(_oldgroup, "SpawnZone", true, 100)
-						-- trigger.action.outTextForGroup(_medevacid, string.format("The wounded has been taken to the\nmedical clinic. Good job!\n\nReinforcment have arrived.", "Good job!"), 30)
-						local _txt = string.format("%s: The wounded has been taken to the\nmedical clinic. Good job!\n\nReinforcment have arrived.", _rescuegroup)
+						-- trigger.action.outTextForGroup(_medevacid, string.format("The wounded have been taken to the\nmedical clinic. Good job!\n\nReinforcment have arrived.", "Good job!"), 30)
+						local _txt = string.format("%s: The wounded have been taken to the\nmedical clinic. Good job!\n\nReinforcment have arrived.", _rescuegroup)
 			
 						medevac.DisplayMessage(_txt, _medevacname, _rescuegroup, 10)
 			
@@ -241,30 +263,38 @@ function BleedTimer(_argument, _time)
 				end
 			end
 			-- trigger.action.outTextForGroup(_medevacid, string.format("Bring them back to the MASH ASAP!\n\nThe wounded will bleed out in: %u seconds.", _timeleft), 2)
-			local _howcritical = "This is hurting a bit. Please get us home."
-			if (_timeleft < 1000) then
-				_howcritical = "Don't fly around aimlessly, we have wounded here!"
+			local _howcritical = "Ok, he is stable!"
+			if (_timeleft < 2400) then
+				_howcritical = "Seems he's ok for now... Get us back!"
 			end
-			if (_timeleft < 800) then
-				_howcritical = "Oh my! This hurts!"
+			if (_timeleft < 1800) then
+				_howcritical = "He's doing fine, but we should go straight to a hospital!"
+			end
+			if (_timeleft < 1200) then
+				_howcritical = "This doesn't look good. He's getting worse!"
+
+
+			end
+			if (_timeleft < 900) then
+				_howcritical = "He's lost a lot of blood! Seems he's bleeding internally!"
+
 			end
 			if (_timeleft < 600) then
-				_howcritical = "Hey! We got a wounded here that needs medical attention ASAP."
+				_howcritical = "I can't stop the bleeding! He's getting worse by the minute!"
+
+
 			end
-			if (_timeleft < 400) then
-				_howcritical = "This doesn't look good. Please step on it!"
+			if (_timeleft < 300) then
+				_howcritical = "He is going into shock! Step on it!"
+
 			end
-			if (_timeleft < 200) then
-				_howcritical = "He has lost a lot of blood! We have to get him to the hospital NOW!"
+			if (_timeleft < 180) then
+				_howcritical = "We're having to resuscitate! Can't this crate go faster!?"
+
 			end
-			if (_timeleft < 50) then
-				_howcritical = "We're losing him!"
-			end
-			if (_timeleft < 30) then
-				_howcritical = "It's just so much blood!"
-			end
-			if (_timeleft < 10) then
-				_howcritical = "..."
+			if (_timeleft < 60) then
+				_howcritical = "We're losing him!! Damn!!!"
+
 			end
 			
 			local _txt = string.format("%s: %s\n\nThe wounded will bleed out in: %u seconds.", _rescuegroup, _howcritical, _timeleft)
@@ -333,10 +363,7 @@ function LandEvent(_argument, _time)
 	local _medevacid = Group.getID(Unit.getGroup(_medevacunit))
 	local _evacpoint = {}
 	
-
 	
-	
-
 	
 	local _status, _evacpoint = pcall(
 		function (_medevacunitarg)
@@ -371,13 +398,32 @@ function LandEvent(_argument, _time)
 		_oldgroup = _args[6]
 		_medevacname = _args[7]
 		if (_medspeed < 1 and _distance < 200 and _medevacunit:inAir() == false) then
-			local _txt = "Units picked up!\n\nBring them back to MASH ASAP!"
+			local _txt = "Wounded picked up!\n\nBring them back to MASH ASAP!"
 			table.insert(medevac.pickedupgroups, _rescuegroup)
 			removeintable(medevac.woundedgroups,_rescuegroup)
 			-- trigger.action.outTextForGroup(_medevacid, string.format("Units picked up!\n\nBring them back to MASH ASAP!", _agl), 10)
 			medevac.DisplayMessage(_txt, _medevacname, _rescuegroup, 20)
+   
+			-- DS: Make sure the pilot has a reasonable time to make it to the MASH, while providing a challenge.
+			local _mashes = medevac.bluemash
+			if (Group.getCoalition(Unit.getGroup(_medevacunit)) == 1) then
+					_mashes = medevac.redmash
+			end
+	
+			local _mashdistance = getShortestMashDistance(_medevacunit, _mashes)
+			local _minbleedtime = calculateMinBleedTime(_mashdistance, medevac.cruisespeed, medevac.minbleedtime)
+			
+			-- DS: If estimated time left for landing is under medevac.minlandtime seconds, pad it to medevac.minlandtime seconds.
+			local _estimatedlandingtime = _minbleedtime * medevac.pilotperformance
+			if(_estimatedlandingtime < medevac.minlandtime) then
+				_minbleedtime = math.ceil(_minbleedtime + (medevac.minlandtime - _estimatedlandingtime))
+			end   
+			local _maxbleedtime = math.ceil(_minbleedtime * medevac.maxbleedtimemultiplier)
+			
 			Group.destroy(Group.getByName(_rescuegroup))
-			timer.scheduleFunction(BleedTimer, {_medevacunit, math.random(0, medevac.maxbleedtime) + timer.getTime(), _oldgroup, _rescuegroup, _medevacname}, timer.getTime() + 1) 
+			-- DS: Set random time between _minbleedtime and _maxbleedtime
+			timer.scheduleFunction(BleedTimer, {_medevacunit, math.random(_minbleedtime, _maxbleedtime) + timer.getTime(), _oldgroup, _rescuegroup, _medevacname}, timer.getTime() + 1)
+			
 			return -1
 		end
 	end
@@ -501,7 +547,7 @@ local _status, _err = pcall(
 				
 				--trigger.action.outTextForGroup(_medevacid, _txt, 10)
 				
-				if (_smokedistance < 400 and ((_smoketime + 300) > timer.getTime() )) then 
+				if (_smokedistance < 400 and ((_smoketime + 30) > timer.getTime() )) then 
 					local _txt = string.format("%s: We are %u meters from the smoke! Do you see us?", _rescuegroup, math.floor(_smokedistance / 10) * 10, ((_smoketime + 300) - timer.getTime() ))
 					medevac.DisplayMessage(_txt, _medevacname, _rescuegroup, 300)
 					smokenear = true
@@ -911,6 +957,25 @@ function medevac.eventhandler:onEvent(vnt)
                                                                 }, -- end of ["action"]
                                                             }, -- end of ["params"]
                                                         }, -- end of [2]
+														[3] = -- set Option ROE to Weapon Hold!!! Shagrat
+                                                        {
+                                                            ["number"] = 3,
+                                                            ["auto"] = false,
+                                                            ["id"] = "WrappedAction",
+                                                            ["enabled"] = medevac.crewholdfire,
+                                                            ["params"] = 
+                                                            {
+                                                                ["action"] = 
+                                                                {
+                                                                    ["id"] = "Option",
+                                                                    ["params"] = 
+                                                                    {
+                                                                        ["name"] = 0,
+                                                                        ["value"] = 4,
+                                                                    }, -- end of ["params"]
+                                                                }, -- end of ["action"]
+                                                            }, -- end of ["params"]
+                                                        }, -- end of [3]
                                                     }, -- end of ["tasks"]
                                                 }, -- end of ["params"]
                                             }, -- end of ["task"]
@@ -974,9 +1039,20 @@ function medevac.eventhandler:onEvent(vnt)
 							value = true
 						} 
 					}
+					-- invisible to AI, Shagrat
+					local _SetInvisible = { 
+						id = 'SetInvisible', 
+						params = { 
+							value = true
+						} 
+					}
 					local _controller = Group.getByName(_groupname):getController()
-					if (medevac.immortalcrew) then Controller.setCommand(_controller, _SetImmortal) end
-					
+					if (medevac.immortalcrew) then 
+						Controller.setCommand(_controller, _SetImmortal)
+					end
+					if (medevac.invisiblecrew) then
+						Controller.setCommand(_controller, _SetInvisible)						
+					end
 					local _leadername = string.format("%s #1", _groupname)
 					if (_ispilot) then _leadername = string.format("%s pilot", _groupname) end
 					local _leaderpos = Unit.getByName(_leadername):getPosition().p
@@ -1131,6 +1207,86 @@ if (medevac.displaymapcoordhint) then
 			return nil
 		end
 	, nil, timer.getTime() + 10) 
+end
+
+-- DS: Calculate direct distance between two points (Say flight of a helicopter from evac point to MASH)
+function calculateDirectDistance(v1, v2)
+	local _distance = math.sqrt( (v1.x - v2.x)^2 + (v1.z - v2.z)^2 )
+	return _distance
+end
+
+-- DS: Get the shortest distance to a MASH unit.
+function getShortestMashDistance(_medevacunit, _mashtable)
+	local _shortestdistance = -1
+    local _distance = 0
+ 
+	for _intnum,_strunitname in ipairs(_mashtable) do
+		local _mashunit = Unit.getByName(_strunitname)
+		if _mashunit ~= nil and _medevacunit ~= nil then
+			_distance = calculateDirectDistance(_medevacunit:getPosition().p, _mashunit:getPosition().p)
+			if _distance ~= nil and (_shortestdistance == -1 or _distance < _shortestdistance) then
+				_shortestdistance = _distance
+			end
+		end
+	end
+ 
+	if _shortestdistance ~= -1 then
+		return _shortestdistance
+	else
+		-- DS: If we don't find any live MASH units, return -1.
+		return -1
+	end
+end
+
+-- DS: Calculate minimum bleed time based on distance to MASH
+function calculateMinBleedTime(_distance, _metersPerSecond, _minBleedTime)
+	-- DS: _distance comes out in meters due to DCS coordinate system.
+	_calcBleedTime = math.ceil(_distance / _metersPerSecond)
+	if _calcBleedTime < _minBleedTime then
+		_calcBleedTime = _minBleedTime
+	end
+
+	return _calcBleedTime
+end
+
+-- DS: Custom function to inject wounded groups
+function addWoundedGroup(_groupname, _medevactext)
+  table.insert(medevac.woundedgroups,_groupname)
+  local _grp = Group.getByName(_groupname)
+  local _woundcoal = Group.getCoalition(_grp)
+  local _leaderpos = mist.getAvgPos(mist.makeUnitTable({"[g]" .. _groupname}))
+  
+  for nr,x in pairs(medevac.medevacunits) do  
+     local status, err = pcall(
+       function (_args)
+         x = _args[1]
+         _woundcoal = _args[2]
+         _medevactext = _args[3]
+         _leaderpos = _args[4]
+         _groupname = _args[5]
+         _grp = _args[6]
+         if (Unit.getByName(x) ~= nil and Unit.isActive(Unit.getByName(x))) then
+           local _medevacgrp = Unit.getGroup(Unit.getByName(x))
+           local _evacoal = Group.getCoalition(_medevacgrp)
+            
+           -- Check coalition side
+           if (_evacoal == _woundcoal) then
+             -- Display a delayed message
+             if _medevactext ~= nil then
+              timer.scheduleFunction(delayedhelpevent, {x, _medevactext, _groupname}, timer.getTime() + medevac.requestdelay)
+             end
+        
+             -- Schedule timer to check when to pop smoke
+            timer.scheduleFunction(SmokeEvent, {_leaderpos, x, _groupname, _grp}, timer.getTime() + 10) 
+           end
+         else
+           env.warning(string.format("Medevac unit %s not active", x), false)
+         end    
+       end
+     , {x, _woundcoal, _medevactext, _leaderpos, _groupname, _grp})
+        
+     if (not status) then env.warning(string.format("Error while checking with medevac-units:\n\n%s",err), false) end
+  end
 end
 
 world.addEventHandler(medevac.eventhandler)
