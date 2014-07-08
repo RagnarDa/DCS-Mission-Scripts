@@ -1,0 +1,110 @@
+Dynamic Medevac Script by RagnarDa 2013/2014
+
+Discussion thread:
+http://forums.eagle.ru/showthread.php?t=107303
+
+The Huey was designed primarily as a medevac helicopter, so I made a little script that will generate Medevac taskings for wounded units. If a ground-vehicle on your side is destroyed, some infantry will spawn representing the crew of the vehicle. You will be notified that they want to be evacuated, you will get coordinates of their position, and when you get near they will drop a smoke marker. You should then pick them up, and before the timer has ended, you should have dropped them off at the MASH (hospital). Unfortunately you can't get any points for saving people, but I included a option to spawn a new group just like the destroyed units once you land (see medevac.clonenewgroups in the spoiler). Also, from version 3 on you can pick up downed pilots (Search And Rescue).
+
+Requires: MiST 3.0+ (versions older than 4.2 needs Mist 2.0 and SCT, see next post)
+
+Instructions:
+
+1. Edit the file Medevac.lua and change as you please:
+
+    medevac.medevacunits - so it contains all the Medevac UNITS (as named under "Pilot" in the mission editor) that you want to use. See picture below.
+    medevac.bluemash = Unit.getByName("BlueMASH") - name a unit in the mission to BlueMASH and it will act as the MASH for blue side.
+    medevac.redmash = Unit.getByName("RedMASH") -name a unit in the mission to RedMASH and it will act as the MASH for red side.
+    medevac.maxbleedtime - set the maximum time that one could have before a wounded bleeds to death.
+    medevac.bluesmokecolor = Color of smokemarker for blue side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
+    medevac.redsmokecolor = Color of smokemarker for red side, same as above
+    medevac.requestdelay = Time in seconds before the survivors will request Medevac
+    medevac.coordtype = Use Lat/Long DMTM (0), Lat/Long DMS (1), MGRS (2), Bullseye imperial (3) or Bullseye metric (4) for coordinates.
+    medevac.displaymapcoordhint = Change to false to disable the hint about changing coordinates on the F10-map
+    medevac.textdisplaymode = 0 to use stacked MiST-style (ideal), 1 to use old-single message style (if no text displayed).
+    medevac.displayerrordialog = Set to true to display error dialog on fatal errors. Recommend set to false in live game.
+    medevac.displaymedunitslist = Set to true to see what medevac units are in the mission at the start (for debugging your mission).
+    medevac.bluecrewsurvivepercent = Percentage of blue crews that will make it out of their vehicles. 100 = all will survive.
+    medevac.redcrewsurvivepercent = Percentage of red crews that will make it out of their vehicles. 100 = all will survive.
+    medevac.showbleedtimer = Set to true to see a timer counting down the time left for the wounded to bleed out, false to hide it
+    medevac.sar_pilots = Set to true to allow for Search & Rescue missions of downed pilots, false to not use this feature
+    medevac.clonenewgroups - set to true to spawn new units every time the player manages to bring back some wounded to the MASH.
+
+2. Open your mission in the Mission Editor
+
+
+3. Click "Set rules for trigger" in the left pane
+
+
+4. Click the leftmost New for a new trigger.
+
+
+5. Click the middle New and change it to Time more, and set it to 2 sec
+
+
+6. Click the rightmost New and change it to Do script file and click open and select Mistv3_x.lua
+
+
+7. Repeat 4-6 but set time to 4 sec and select Medevac.lua instead.
+
+
+8. Close the window
+
+
+9. Add a MASH for each side. It must be a live ground unit and it must be named "BlueMASH" and "RedMASH" respectively (unless you changed it above).
+
+
+10. Add MEDEVAC units (preferably player-controlled Hueys, right?) and name the UNITS (the line that says "Pilot") like you did above in medevac.medevacunits. See pictures:
+Click image for larger version
+
+Known issues (v 4):
+- The Latitude/Longitude coordinates is broken. Don't know why or how to fix it. The other coordinates options (MGRS or Bullseye) do work.
+
+Latest version by Shagrat and DragonShadow: http://forums.eagle.ru/showpost.php?p=1996579
+
+Changelog
+( 2014-01-05 ) Happy new year! Time for version no. 4.2! This includes changes from version 4.1 and for alexej21.
+
+    Changelog v 4.2
+    - Verified compatibility with MiST 3.2+ and removed compatibility with SCT.
+    Changelog v 4.1
+    - Added so units will place new smoke if the medevac crashes (requested by Xillinx) Still untested, please report!
+    Changelog v 4 alexej21
+    - Added option for immortal wounded.
+    - Added option for spawning every third crew as an RPG soldier.
+
+
+( 2013-09-09 ) Update no. 4! This includes the changes from version 3.1 and 3.2:
+
+    Changelog v 4
+    - Added option medevac.sar_pilots for those that want to turn off the search for downed pilots feature, which is probably better done by other scripts.
+    Changelog v 3.2
+    - Added possibility for multiple MASH:es (suggested by a number of people)
+    - Added option to hide bleedout timer (suggested by FubarBundy)
+    Changelog v 3.1
+    - Added check so that MASH is on right coalition.
+    - Removed option to use MiST-messaging as it is not working.
+    - Added option to change color of smoke for each side (suggested by Shelt)
+
+( 2013-06-12 ) Update! Fixed some issues, and added new features (including SAR!):
+
+    Changed model of red soldiers to high-detail (russian) ones
+    Added survivalpercent for both sides (suggested by [MA] Agaton)
+    I *think* I solved the problem with long messages (reported by BIGNEWY)
+    Search And Rescue missions! (suggested by a number of people)
+    Added a F10-radiomenuitem so you can check available tasks (suggested by MiK684 and WolfK33)
+    Solved issue with survivors running around in circles
+    The update is called v3
+
+( 2013-05-29 ) Update! Fixed a few problems and added new features:
+
+    Please note that medevac.medevacunits should now contain the name of the individual units, and not the group like before.
+    A message system (using MiST) that displays multiple messages from different medevac-tasks. Don't really know how this will work in multiplayer.
+    More options! You can now select which color of the smoke markers to use (default green), coordinate system that the medevac-request will be in (default Bullseye/Imperial), and how long before a unit will request evacuation (default 5 sec which is kind of short). Theres also multiple useful options for debugging/going live, like turning OFF error-dialogs.
+    Note that this download is called v2 and you can still download the old version in case this update brakes something.
+
+( 2013-05-28 ) Update! Found a bug thanks to my squad-mate Agaton. Updated script + mission attached!
+
+WHAT DO I WANT IN RETURN?
+I've spent a few days developing this script. What I need now is feedback! Did it crash? Did it suck? Did it rock? The script outputs data to the dcs.log - file so if you experience a crash or something else unwanted, please please please send the log-file to me so I can maybe fix the problem. If you make a mission with this script please tell me! Even if its a very simple mission I would really like to know how and if this script is used.
+
+See you in the skies! 

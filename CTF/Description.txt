@@ -1,0 +1,39 @@
+DCS:Capture The Flag by RagnarDa 2013
+
+Discussion thread:
+http://forums.eagle.ru/showthread.php?t=115907
+
+This is a script that introduces the multiplayer game style of Capture The Flag to DCS:World. Included is also a pack with 15 missions demonstrating the script. The "flag" is represented by red (for red side) or green (for blue side) flares that are popping out of mid-air every other second. The player takes the flag by flying through the point in the air where the flares are coming from (see picture) and captures the flag by flying through their own "base". In the demo-missions, the bases are marked with armed guard towers but the point where the flag is to be put are a few meters above the tower. You can see who is carrying the flag by the colored flares that are popping out of the flag carrier every other second (see picture). Here's a video where you can see it in-game (sorry for being in Swedish):
+
+Rules:
+The rules in the demo-missions is similar to but not really standard CTF rules because I forgot the original rules. Each team has a base where their own flag is that they should protect. See picture of a typical map layout (Mozdok). If you fly through your enemies base you take the flag and then carry it with you until you 1) fly through your own base and your team get one point 2) drop the flag by dying and then your teammates can pick it up or the enemy team can return the flag 3) fire a weapon in which you are penalized by the flag being automatically returned to the enemy base (optional, default on).
+
+Click image for larger version Name: Mozdok CTF.png Views: 258 Size: 794.1 KB ID: 89793
+(Mozdok - typical mission layout)
+Click image for larger version Name: Take flag.png Views: 259 Size: 121.6 KB ID: 89794
+(Take the flag by flying where the flares are coming from - capture the flag by flying through this point in your own base with the enemy flag)
+Click image for larger version Name: Flag carrier.png Views: 258 Size: 80.6 KB ID: 89795
+(The one who carries the flag is popping flares)
+
+Settings:
+- Triple flares: To more easily see the flag, have three flares pop at once instead of just one. Default OFF.
+- Return flag when other side captures: If you are carrying the flag and the other team captures your teams flag (takes it to their base) you lose the flag you are carrying and it is returned to the enemy base. Default ON.
+- Return flag when firing: If you are carrying the flag and fire any of your weapons the flag you are carrying is returned to the enemy base. Default ON.
+- Require own flag for capture: You need to have your own flag in your own base in order to capture the enemy flag. Default OFF.
+
+
+Sounds:
+Sounds are played via the mission editor flags 8001 (someone takes the flag) 8002 (someone captures the flag) and 8003 (someone returned the flag). See the demo-missions for how it's done.
+
+
+A few notes:
+- I need feedback! Please post your experience with this script and the missions and what you do with it.
+- There seems to be a server-crashing bug, possibly related to players joining. I need help nailing this one down.
+- Preliminary testing indicated that flying the same aircrafts on both sides was the most fun, although A-10 vs Su-25 did work OK. To be able to tell people apart we needed to turn labels on, but it would have been awesome with bright red and blue/green skins for the most popular aircrafts like Su-25 and P-51D.
+- A 3D-model of the flag, like a bright orb or something would be awesome but my modeling abilities are limited (hint).
+
+
+Enjoy!
+
+
+Ps. Some of my squadmates was sceptical at first but then turned over as you can probably hear in the video Ds. 
