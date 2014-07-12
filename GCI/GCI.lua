@@ -445,7 +445,11 @@ gci.dynAdd = function(newGroup) -- same as coalition.add function in SSE. checks
 function gci.planintercept(trackedunit, _squadrons)
 	if (gci.verbose > 0) then env.info("Sanity-checking") end
 	assert(type(_squadrons)=="table", "Sanity-check: squadron is not a table.")
-	assert(tablelength(_squadrons) > 0, "Trying to do a interception mission, but there are no squadrons.")
+	--assert(tablelength(_squadrons) > 0, "Trying to do a interception mission, but there are no squadrons.")
+	if (tablelength(_squadrons) < 1) then 
+		env.warning("There are no squadrons available, aborting.", false)
+		return
+	end
 	--assert(tablelength(getAliveUnits(Unit.getGroup(trackedunit)))>0, "Sanity check. Group is not alive?")
 
 	if (gci.verbose > 0) then env.info(string.format("Plan new intercept for target %s", Unit.getName(trackedunit), false)) end
@@ -870,6 +874,110 @@ function gci.eventhandler:onEvent(vnt)
 					
 				end
 			end
+			if (vnt.id == 13 or vnt.id == 15) then
+				env.info("BIRTH!")
+				-- Unit borned
+				local _groupName = Unit.getGroup(vnt.initiator):getName()
+			if string.find(string.lower(_groupName), "interceptor") then -- Finds group with Interceptor in name
+		env.info(string.format("Non-dynamic Interceptor-group %s found",_groupName), false)
+		
+		-- Get speed setting
+		local _ispeed = 370 -- Default M1.1
+		if string.find(string.lower(_groupName), " z ") then _ispeed = 262 end -- M0.77
+		if string.find(string.lower(_groupName), " x ") then _ispeed = 680 end -- M2
+		if string.find(string.lower(_groupName), " y ") then _ispeed = 880 end -- M2.6
+		
+		-- Get altitude setting
+		-- medium altitude is between 3000m and 9000m (USAF standard)
+		local _ialt = 6000 -- Default medium altitude (20000ft)
+		local _ialttype = "BARO" -- Default medium altitude barometric height
+		if string.find(string.lower(_groupName), " n ") then -- Nap-of-the-earth (very low)
+			_ialt = 100
+			_ialttype = "RADIO"
+		end
+		if string.find(string.lower(_groupName), " ll ") then -- Low-low
+			_ialt = 1000
+			_ialttype = "BARO"
+		end
+		if string.find(string.lower(_groupName), " hl ") then -- High-low
+			_ialt = 2000
+			_ialttype = "BARO"
+		end
+		if string.find(string.lower(_groupName), " lm ") then -- Low-medium
+			_ialt = 4000
+			_ialttype = "BARO"
+		end
+		if string.find(string.lower(_groupName), " hm ") then -- High-medium
+			_ialt = 8000
+			_ialttype = "BARO"
+		end
+		if string.find(string.lower(_groupName), " lh ") then -- Low-High
+			_ialt = 10000
+			_ialttype = "BARO"
+		end
+		if string.find(string.lower(_groupName), " hh ") then -- High-High
+			_ialt = 15000
+			_ialttype = "BARO"
+		end
+		
+		-- Get radar setting search radar (this will also enable engaging targets while enroute)
+		local _searchradar = false -- Default false
+		if string.find(string.lower(_groupName), " q ") then _searchradar = true end
+		
+		-- Get radar setting attack radar
+		local _attackradar = true -- Default true
+		if string.find(string.lower(_groupName), " s ") then _attackradar = false end
+		
+		-- Get engagement range setting
+		local _engagementrange = 35000 -- Default attack-range (for AIM-7, R-27 equipped fighters)
+		if string.find(string.lower(_groupName), " wvrb ") then _engagementrange = 2000 end -- WVR bad visibility
+		if string.find(string.lower(_groupName), " wvrg ") then _engagementrange = 5000 end -- WVR good visibility
+		if string.find(string.lower(_groupName), " bvrs ") then _engagementrange = 12000 end -- Very short-range BVR (ie R-13 or AIM-9 equipped, like MiG-21)
+		if string.find(string.lower(_groupName), " bvre ") then _engagementrange = 20000 end -- Early radar guided (ie R-24 equipped fighters, like MiG-23)
+		if string.find(string.lower(_groupName), " bvra ") then _engagementrange = 50000 end -- Active medium range radar guided (ie AIM-120, R-77)
+		if string.find(string.lower(_groupName), " bvrl ") then _engagementrange = 90000 end -- Active long range radar guided (ie AIM-54, R-33)
+		
+		-- Get combat radius setting
+		local _combatradius = 250000 -- Default combat-radius (ie from Vaziani to Kobuleti)
+		if string.find(string.lower(_groupName), " sscr ") then _combatradius = 50000 end -- Short-range, ie base-defence only
+		if string.find(string.lower(_groupName), " mscr ") then _engagementrange = 15000 end -- Medium short-range, ie from Sukhumi to Kobuleti
+		if string.find(string.lower(_groupName), " mlcr ") then _engagementrange = 500000 end -- Medium long-range, ie from Novorossiysk to Nalchik
+		if string.find(string.lower(_groupName), " vlcr ") then _engagementrange = 1000000 end -- Entire map
+		
+		local newsquadron = {
+		airdromeId = 0, -- Homebase for the interceptorsquadron
+		interceptspeed = _ispeed, -- Intecept targets at this speed in meter/second
+		interceptalt = _ialt, -- Fly at this altitued while intercepting
+		interceptalt_type = _ialttype,  -- Use this type of altitude when intercepting, "RADIO" or "BARO"
+		egressspeed = 170, -- Fly in this speed when cruising/looking for targets/returning home
+		egressalt = _ialt, -- Fly at this altitude
+		egressalt_type = _ialttype,
+		usesearchradar = _searchradar, -- Use radar when flying to interception-point
+		useattackradar = _attackradar, -- Use radar when attacking target
+		engagementrange = _engagementrange, -- Attack targets at this range in meters
+		combatradius = _combatradius, -- Maximum range from starting point that the interceptor will fly
+		
+		flights = -- List of groups and flags to activate interceptor flights
+		{
+			{_groupName, "9999999"},
+		}
+		}
+		local _interceptorgroup = Group.getByName(_groupName)
+		local _interceptorunit = getAliveUnits(_interceptorgroup)[1]
+		if (_interceptorgroup:getCoalition() == coalition.side.BLUE) then
+			table.insert(gci.blueinterceptorsquadrons, newsquadron)
+		else
+			table.insert(gci.redinterceptorsquadrons, newsquadron)
+		end
+
+		--env.info(mist.utils.tableShow(_groupdata),true)
+		--local _newgroupname = gci.dynAdd(_groupdata)
+		--env.info(string.format("New group name: %s", _newgroupname), true)
+		--local _clone = mist.cloneGroup(_groupName, true)
+		
+		--env.info(string.format("Group cloned: %s", _clone["name"]),true)
+	end
+	end
 			-- if (vnt.id == 6) then
 				-- -- Pilot ejected
 				-- if (gci.verbose > 0) then env.info(string.format("Pilot %s ejected", Object.getName(vnt.initiator))) end
@@ -1834,13 +1942,13 @@ for _groupName, _groupData in pairs(mist.DBs.groupsByName) do -- checks all grou
 		}
 		}
 		local _interceptorgroup = Group.getByName(_groupName)
-		local _interceptorunit = getAliveUnits(_interceptorgroup)[1]
-		if (Unit.getCoalition(_interceptorunit) == coalition.side.BLUE) then
-			table.insert(gci.blueinterceptorsquadrons, newsquadron)
-		else
-			table.insert(gci.redinterceptorsquadrons, newsquadron)
+		if (table.getn(getAliveUnits(_interceptorgroup)) > 0) then
+			if (_interceptorgroup:getCoalition() == coalition.side.BLUE) then
+				table.insert(gci.blueinterceptorsquadrons, newsquadron)
+			else
+				table.insert(gci.redinterceptorsquadrons, newsquadron)
+			end
 		end
-
 		--env.info(mist.utils.tableShow(_groupdata),true)
 		--local _newgroupname = gci.dynAdd(_groupdata)
 		--env.info(string.format("New group name: %s", _newgroupname), true)
