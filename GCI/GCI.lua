@@ -618,7 +618,11 @@ function gci.doradarsweep()
 									env.warning(string.format("Can't get units in group # %f", h), false)
 								end
 								if (getGroupHealthPercentage(Group.getByName(intrcptr.iflight)) < 55) then
-									if (gci.verbose > 0) then env.info(string.format("Interceptor group health: %d, fuel: %f, ammo: %d sending new", getGroupHealthPercentage(Group.getByName(intrcptr.iflight)), Unit.getFuel(getAliveUnits(Group.getByName(intrcptr.iflight))[1]), tablelength(Unit.getAmmo(getAliveUnits(Group.getByName(intrcptr.iflight))[1]))), false) end
+										if (getGroupHealthPercentage(Group.getByName(intrcptr.iflight)) > 1) then
+											if (gci.verbose > 0) then env.info(string.format("Unit health too low. Interceptor group health: %d, fuel: %f, ammo: %d sending new", getGroupHealthPercentage(Group.getByName(intrcptr.iflight)), Unit.getFuel(getAliveUnits(Group.getByName(intrcptr.iflight))[1]), tablelength(Unit.getAmmo(getAliveUnits(Group.getByName(intrcptr.iflight))[1]))), false) end
+										else
+											if (gci.verbose > 0) then env.info("Group dead",false) end
+										end
 									removeintable(gci.targetassignments, intrcptr)
 									removeintable(gci.interceptedgroups, Unit.getGroup(trackedunit))
 									gci.planintercept(trackedunit, gci.blueinterceptorsquadrons)
@@ -1341,7 +1345,7 @@ function gci.dointercept(target, iflight, startpos)
 				action = {
 					id = 'Script',
 					params = {
-						command = string.format("trigger.action.outTextForGroup(Group.getID(Group.getByName(\"%s\")), \"Your target should be at bearing %d altitude %d. You are clear to engage. %s\", 60)", iflight[2], tardir, math.floor(_targetunitposp.y/100)*100,_useradartext)
+						command = string.format("trigger.action.outTextForGroup(Group.getID(Group.getByName(\"%s\")), \"Your target should be at bearing %d altitude %d. You are cleared to engage. %s\", 60)", iflight[2], tardir, math.floor(_targetunitposp.y/100)*100,_useradartext)
 					}
 				}
 			}
@@ -1552,6 +1556,10 @@ function gci.dointercept(target, iflight, startpos)
 			
 			mist.scheduleFunction (function(_interceptorgroup,_interceptorusesearchradar,_mission, _targetunitposp)
 				local stus, erronr = pcall(function (_interceptorgroup,_interceptorusesearchradar,_mission, _targetunitposp)
+				if (tablelength(getAliveUnits(_interceptorgroup))<1) then
+					env.warning("Group no longer exists. Aborting setting task.",false)
+					return
+				end
 				-- Set radar and mission
 				local _controller = _interceptorgroup:getController();
 				if (_interceptorusesearchradar == false) then
@@ -1599,7 +1607,7 @@ function gci.dointercept(target, iflight, startpos)
 					local dir = mist.utils.getDir(vec, _interceptorunitposp)
 					local tarvec = {x = _targetunitposp.x - _interceptorunitposp.x, y = _targetunitposp.y - _interceptorunitposp.y, z = _targetunitposp.z - _interceptorunitposp.z}
 					local tardir = math.deg(mist.utils.getDir(tarvec, _interceptorunitposp))
-					local _engagetext = "You are clear to engage."
+					local _engagetext = "You are cleared to engage."
 					if (tablecontains(gci.divertables, Group.getName(Unit.getGroup(_targetunit)))) then _engagetext = "Weapons hold. Try to divert the target." end
 					local _targetinfo = string.format("\nYour target should be at heading %d altitude %s. %s %s", tardir+mist.getNorthCorrection(_interceptorunitposp), _taltstr,_engagetext,_useradartext)
 					if (_dist > _interceptrange) then _targetinfo = "" end
